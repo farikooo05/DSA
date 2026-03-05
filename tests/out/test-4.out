@@ -1,0 +1,281 @@
+* Read from stdin ... 11 lines in data.
+* Loaded 11 lines of data.
+* starting scheduling on 1 CPUs
+[t=0]
+> schedule pid=0 prio=10 ('init') ... added to running queue
+> CPU occupation: CPU[0]=10 
+> running: [(10,0) ]
+> pending: [(9,5) (8,6) (7,3) (6,9) (5,8) (4,4) (3,7) (2,2) (1,1) ]
+[t=1]
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=11 
+> running: [(10,0) (1,1) ]
+> pending: [(9,5) (8,6) (7,3) (6,9) (5,8) (4,4) (3,7) (2,2) ]
+[t=2]
+> running: [(10,0) (1,1) ]
+> pending: [(9,5) (8,6) (7,3) (6,9) (5,8) (4,4) (3,7) (2,2) ]
+[t=3]
+> running: [(10,0) (1,1) ]
+> pending: [(9,5) (8,6) (7,3) (6,9) (5,8) (4,4) (3,7) (2,2) ]
+[t=4]
+> schedule pid=2 prio=2 ('xclock') ... added to running queue
+> CPU occupation: CPU[0]=13 
+> running: [(10,0) (1,1) (2,2) ]
+> pending: [(9,5) (8,6) (7,3) (6,9) (5,8) (4,4) (3,7) ]
+[t=5]
+> running: [(10,0) (2,2) (1,1) ]
+> pending: [(9,5) (8,6) (7,3) (6,9) (5,8) (4,4) (3,7) ]
+[t=6]
+> running: [(10,0) (2,2) (1,1) ]
+> pending: [(9,5) (8,6) (7,3) (6,9) (5,8) (4,4) (3,7) ]
+[t=7]
+> process pid=2 prio=2 ('xclock') finished after time t=6
+> CPU occupation: CPU[0]=11 
+> schedule pid=3 prio=7 ('firefox') ... added to running queue
+> CPU occupation: CPU[0]=18 
+> running: [(10,0) (1,1) (7,3) ]
+> pending: [(9,5) (8,6) (6,9) (5,8) (4,4) (3,7) ]
+[t=8]
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: pid=1 prio=1 ('bash')
+> CPU occupation: CPU[0]=17 
+can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> running: [(10,0) (7,3) ]
+> pending: [(9,5) (8,6) (6,9) (5,8) (1,1) (4,4) (3,7) ]
+[t=9]
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=18 
+> running: [(10,0) (7,3) (1,1) ]
+> pending: [(9,5) (8,6) (6,9) (5,8) (4,4) (3,7) ]
+[t=10]
+> schedule pid=5 prio=9 ('df') ...can't fit. Pick process to put asleep: pid=1 prio=1 ('bash')
+> CPU occupation: CPU[0]=17 
+can't fit. Pick process to put asleep: pid=3 prio=7 ('firefox')
+> CPU occupation: CPU[0]=10 
+ added to running queue
+> CPU occupation: CPU[0]=19 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> running: [(10,0) (9,5) ]
+> pending: [(8,6) (6,9) (7,3) (1,1) (5,8) (4,4) (3,7) ]
+[t=11]
+> schedule pid=6 prio=8 ('time') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=3 prio=7 ('firefox') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=20 
+> running: [(10,0) (9,5) (1,1) ]
+> pending: [(8,6) (7,3) (6,9) (5,8) (4,4) (3,7) ]
+[t=12]
+> schedule pid=6 prio=8 ('time') ...can't fit. Pick process to put asleep: pid=1 prio=1 ('bash')
+> CPU occupation: CPU[0]=19 
+can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=3 prio=7 ('firefox') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> running: [(10,0) (9,5) ]
+> pending: [(8,6) (6,9) (7,3) (1,1) (5,8) (4,4) (3,7) ]
+[t=13]
+> schedule pid=6 prio=8 ('time') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=3 prio=7 ('firefox') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=9 prio=6 ('js') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=5 prio=9 ('df') has greater or equal priority
+> CPU occupation: CPU[0]=19 
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=20 
+> running: [(10,0) (9,5) (1,1) ]
+> pending: [(8,6) (7,3) (6,9) (5,8) (4,4) (3,7) ]
+[t=14]
+> process pid=5 prio=9 ('df') finished after time t=13
+> CPU occupation: CPU[0]=11 
+> schedule pid=6 prio=8 ('time') ... added to running queue
+> CPU occupation: CPU[0]=19 
+> schedule pid=3 prio=7 ('firefox') ...can't fit. Pick process to put asleep: pid=1 prio=1 ('bash')
+> CPU occupation: CPU[0]=18 
+can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=9 prio=6 ('js') ...can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=7 prio=3 ('wc') ...can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> running: [(10,0) (8,6) ]
+> pending: [(7,3) (5,8) (6,9) (1,1) (4,4) (3,7) ]
+[t=15]
+> schedule pid=3 prio=7 ('firefox') ...can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=9 prio=6 ('js') ...can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=8 prio=5 ('cat') ...can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=7 prio=3 ('wc') ...can't fit. Pick process to put asleep: None, as min prio: pid=6 prio=8 ('time') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=19 
+> running: [(10,0) (8,6) (1,1) ]
+> pending: [(7,3) (6,9) (5,8) (4,4) (3,7) ]
+[t=16]
+> process pid=6 prio=8 ('time') finished after time t=15
+> CPU occupation: CPU[0]=11 
+> schedule pid=3 prio=7 ('firefox') ... added to running queue
+> CPU occupation: CPU[0]=18 
+> schedule pid=9 prio=6 ('js') ...can't fit. Pick process to put asleep: pid=1 prio=1 ('bash')
+> CPU occupation: CPU[0]=17 
+can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=8 prio=5 ('cat') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=7 prio=3 ('wc') ... added to running queue
+> CPU occupation: CPU[0]=20 
+> running: [(10,0) (7,3) (3,7) ]
+> pending: [(6,9) (4,4) (5,8) (1,1) ]
+[t=17]
+> schedule pid=9 prio=6 ('js') ...can't fit. Pick process to put asleep: pid=7 prio=3 ('wc')
+> CPU occupation: CPU[0]=17 
+can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=8 prio=5 ('cat') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=18 
+> running: [(10,0) (7,3) (1,1) ]
+> pending: [(6,9) (4,4) (5,8) (3,7) ]
+[t=18]
+> schedule pid=9 prio=6 ('js') ...can't fit. Pick process to put asleep: pid=1 prio=1 ('bash')
+> CPU occupation: CPU[0]=17 
+can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=8 prio=5 ('cat') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=7 prio=3 ('wc') ... added to running queue
+> CPU occupation: CPU[0]=20 
+> running: [(10,0) (7,3) (3,7) ]
+> pending: [(6,9) (4,4) (5,8) (1,1) ]
+[t=19]
+> schedule pid=9 prio=6 ('js') ...can't fit. Pick process to put asleep: pid=7 prio=3 ('wc')
+> CPU occupation: CPU[0]=17 
+can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=8 prio=5 ('cat') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=18 
+> running: [(10,0) (7,3) (1,1) ]
+> pending: [(6,9) (4,4) (5,8) (3,7) ]
+[t=20]
+> schedule pid=9 prio=6 ('js') ...can't fit. Pick process to put asleep: pid=1 prio=1 ('bash')
+> CPU occupation: CPU[0]=17 
+can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=8 prio=5 ('cat') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=3 prio=7 ('firefox') has greater or equal priority
+> CPU occupation: CPU[0]=17 
+> schedule pid=7 prio=3 ('wc') ... added to running queue
+> CPU occupation: CPU[0]=20 
+> running: [(10,0) (7,3) (3,7) ]
+> pending: [(6,9) (4,4) (5,8) (1,1) ]
+[t=21]
+> process pid=0 prio=10 ('init') finished after time t=20
+> CPU occupation: CPU[0]=10 
+> process pid=7 prio=3 ('wc') finished after time t=20
+> CPU occupation: CPU[0]=7 
+> schedule pid=9 prio=6 ('js') ... added to running queue
+> CPU occupation: CPU[0]=13 
+> schedule pid=8 prio=5 ('cat') ... added to running queue
+> CPU occupation: CPU[0]=18 
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=8 prio=5 ('cat') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=19 
+> running: [(7,3) (6,9) (5,8) (1,1) ]
+> pending: [(4,4) ]
+[t=22]
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: pid=1 prio=1 ('bash')
+> CPU occupation: CPU[0]=18 
+can't fit. Pick process to put asleep: None, as min prio: pid=8 prio=5 ('cat') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> running: [(7,3) (6,9) (5,8) ]
+> pending: [(4,4) (1,1) ]
+[t=23]
+> schedule pid=4 prio=4 ('sweep') ...can't fit. Pick process to put asleep: None, as min prio: pid=8 prio=5 ('cat') has greater or equal priority
+> CPU occupation: CPU[0]=18 
+> schedule pid=1 prio=1 ('bash') ... added to running queue
+> CPU occupation: CPU[0]=19 
+> running: [(7,3) (6,9) (5,8) (1,1) ]
+> pending: [(4,4) ]
+[t=24]
+> process pid=8 prio=5 ('cat') finished after time t=23
+> CPU occupation: CPU[0]=14 
+> schedule pid=4 prio=4 ('sweep') ... added to running queue
+> CPU occupation: CPU[0]=18 
+> running: [(7,3) (6,9) (1,1) (4,4) ]
+> pending: []
+[t=25]
+> running: [(7,3) (6,9) (4,4) (1,1) ]
+> pending: []
+[t=26]
+> process pid=3 prio=7 ('firefox') finished after time t=25
+> CPU occupation: CPU[0]=11 
+> process pid=4 prio=4 ('sweep') finished after time t=25
+> CPU occupation: CPU[0]=7 
+> running: [(6,9) (1,1) ]
+> pending: []
+[t=27]
+> process pid=9 prio=6 ('js') finished after time t=26
+> CPU occupation: CPU[0]=1 
+> running: [(1,1) ]
+> pending: []
+[t=28]
+> running: [(1,1) ]
+> pending: []
+[t=29]
+> process pid=1 prio=1 ('bash') finished after time t=28
+> CPU occupation: CPU[0]=0 
+> running: []
+> pending: []
+* Chronogram === 
+	|....|....|....|....|....|...
+init	XXXXXXXXXXXXXXXXXXXX			 (tf=20,idle=0)
+bash	 XXXXXXXXXXXXXXXXXXXXXXXXXXX			 (tf=28,idle=8)
+xclock	    XX			 (tf=6,idle=0)
+firefox	       XXXXXXXXXXXXXXXXXX			 (tf=25,idle=6)
+sweep	        XXXXXXXXXXXXXXXXX			 (tf=25,idle=16)
+df	          XXX			 (tf=13,idle=0)
+time	           XXXX			 (tf=15,idle=3)
+wc	              XXXXXX			 (tf=20,idle=4)
+cat	               XXXXXXXX			 (tf=23,idle=6)
+js	             XXXXXXXXXXXXX			 (tf=26,idle=8)
+
+[===Results===]
+0	RRRRRRRRRRRRRRRRRRRRR________
+1	.RRRRRRR.R.R.R.R.R.R.R.RRRRRR
+2	....RRR______________________
+3	.......RRR......RRRRRRRRRR___
+4	........................RR___
+5	..........RRRR_______________
+6	..............RR_____________
+7	................R.R.R________
+8	.....................RRR_____
+9	.....................RRRRRR__
