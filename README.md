@@ -51,7 +51,7 @@ dsa2-project
      └── test-sched.sh
 ```
 
-Your source files must be in the top `src/' directory.
+Your source files must be in the top `src/` directory.
 Complete the existing `Makefile` do not write a new one from scratch.
 You will find test a test program to build in `tests/src` with `make`.
 Once build, you will be able to test with the `tests/test-sched.sh` script.
