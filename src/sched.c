@@ -159,8 +159,17 @@ int main(int argc, char** argv) {
 	printf(" %zu lines in data.\n", nr);
 
 	workload = malloc(sizeof(workload_item) * nr);
+	if (!workload) {
+		perror("malloc workload");
+		return EXIT_FAILURE;
+	}
+
 	size_t workload_size = read_data(nr, input);
-	printf("* Loaded %zu lines of data.\n", nr);
+	if (workload_size < nr) {
+		printf("* Warning: Only %zu/%zu lines loaded successfully.\n", workload_size, nr);
+	} else {
+		printf("* Loaded %zu lines of data.\n", workload_size);
+	}
 	pstate **timeline = alloc_timeline(MAX_STEPS, workload_size);
 
 	if (nr > 0) 
