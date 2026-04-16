@@ -94,30 +94,35 @@ size_t count_lines_in_file(FILE *file) {
 }
 
 /**
- * @brief Read the workload data
- * 
- * @param filename the name of file, can be STDIN
- * @return number of data lines read in the file
+ * @brief Read the workload data from the provided file.
  */
 size_t read_data(size_t workload_size, FILE *file) {
     size_t count = 0;
-    char line[256];  // Buffer for each line in the file
-    char cmd[50];    // Buffer for command name
+    char line[256];
+    char cmd_buf[128];
 
     while (fgets(line, sizeof(line), file) && count < workload_size) {
+        // Skip empty lines or carriage returns
+        if (line[0] == '\n' || line[0] == '\r' || line[0] == ' ') continue;
+
         workload_item item;
-        // Parse the line into the workload_item structure
+        // The project requires columns to be blank-separated as per Section 4.1
         if (sscanf(line, "%d %d %zu %zu %zu %s %d",
                    &item.pid, &item.ppid, &item.ts, &item.tf,
-                   &item.idle, cmd, &item.prio) == 7) {
-            item.cmd = strdup(cmd);  // Duplicate the string for command name
+                   &item.idle, cmd_buf, &item.prio) == 7) {
+            
+            item.cmd = strdup(cmd_buf);
+            if (!item.cmd) {
+                perror("strdup error");
+                break;
+            }
             workload[count++] = item;
         } else {
-            fprintf(stderr, "Error parsing line: %s\n", line);
-			return false;
+            fprintf(stderr, "Error parsing workload line: %s", line);
+            break; 
         }
-	}
-	return count;
+    }
+    return count;
 }
 
 /**
