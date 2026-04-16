@@ -126,6 +126,20 @@ size_t read_data(size_t workload_size, FILE *file) {
 }
 
 /**
+ * @brief Free all memory allocated for the workload.
+ */
+void free_workload(size_t size) {
+	if (!workload) return;
+	for (size_t i = 0; i < size; i++) {
+		if (workload[i].cmd) {
+			free(workload[i].cmd);
+		}
+	}
+	free(workload);
+	workload = NULL;
+}
+
+/**
  * @brief main loop for simulation: describe actions taken at each
  * time step from time ts to tf. 
  */
@@ -156,8 +170,6 @@ int main(int argc, char** argv) {
 	fflush(stdout);
 	size_t nr = count_lines_in_file(input);
 
-	printf(" %zu lines in data.\n", nr);
-
 	workload = malloc(sizeof(workload_item) * nr);
 	if (!workload) {
 		perror("malloc workload");
@@ -181,6 +193,9 @@ int main(int argc, char** argv) {
 	printf("* Chronogram === \n");
 	chronogram(workload, workload_size, MAX_STEPS - 1);
 	print_timeline(MAX_STEPS - 1, workload_size, timeline);
-	free(workload);
+	
+	free_workload(workload_size);
+	free_timeline(workload_size, timeline);
+	
 	return 0;
 }

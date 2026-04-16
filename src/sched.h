@@ -26,4 +26,9 @@ typedef struct workload_item_t workload_item;
 /* Global workload pointer shared across modules */
 extern workload_item* workload;
 
+/**
+ * @brief Free all memory allocated for the workload.
+ */
+void free_workload(size_t size);
+
 #endif
