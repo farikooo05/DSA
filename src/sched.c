@@ -140,6 +140,36 @@ void free_workload(size_t size) {
 }
 
 /**
+ * @brief Comparison function to sort workload items by start time (ts).
+ * This allows the scheduler to easily step through the workload.
+ */
+int compare_workload(const void *a, const void *b) {
+    const workload_item *item_a = (const workload_item *)a;
+    const workload_item *item_b = (const workload_item *)b;
+    
+    if (item_a->ts != item_b->ts) {
+        return (int)item_a->ts - (int)item_b->ts;
+    }
+    // Secondary sort: Priority (Higher first)
+    return item_b->prio - item_a->prio;
+}
+
+/**
+ * @brief Comparison function for the scheduler's internal queues.
+ * Sorts by priority (descending) and PID (ascending) as a tie-breaker.
+ */
+int compare_processes(const void *a, const void *b) {
+    const process *p1 = (const process *)a;
+    const process *p2 = (const process *)b;
+
+    if (p1->prio != p2->prio) {
+        return p2->prio - p1->prio; // Higher priority first
+    }
+    // Tie-breaker: Lower PID first (fairness)
+    return (int)p1->pid - (int)p2->pid;
+}
+
+/**
  * @brief main loop for simulation: describe actions taken at each
  * time step from time ts to tf. 
  */

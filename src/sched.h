@@ -31,4 +31,14 @@ extern workload_item* workload;
  */
 void free_workload(size_t size);
 
+/**
+ * @brief Comparison function to sort workload items by start time.
+ */
+int compare_workload(const void *a, const void *b);
+
+/**
+ * @brief Comparison function to sort processes by priority (and PID for ties).
+ */
+int compare_processes(const void *a, const void *b);
+
 #endif
