@@ -212,20 +212,32 @@ int main(int argc, char** argv) {
 	} else {
 		printf("* Loaded %zu lines of data.\n", workload_size);
 	}
+
+	// Ensure workload is sorted by arrival time (Infrastructure Architect step)
+	if (workload_size > 0) {
+		qsort(workload, workload_size, sizeof(workload_item), compare_workload);
+	}
+
 	pstate **timeline = alloc_timeline(MAX_STEPS, workload_size);
 
-	if (nr > 0) 
+	if (workload_size > 0) {
 		time_loop(workload_size, 0, MAX_STEPS - 1, MAX_CPU_CAP, timeline);
-	else
+	} else {
+		fprintf(stderr, "Error: No valid workload to simulate.\n");
+		free_workload(nr);
+		if (input != stdin) fclose(input);
 		return EXIT_FAILURE;
+	}
 
 
 	printf("* Chronogram === \n");
 	chronogram(workload, workload_size, MAX_STEPS - 1);
 	print_timeline(MAX_STEPS - 1, workload_size, timeline);
 	
+	// Cleanup
 	free_workload(workload_size);
 	free_timeline(workload_size, timeline);
+	if (input != stdin) fclose(input);
 	
 	return 0;
 }
