@@ -1,26 +1,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "sched.h"
 #include "trace.h"
 #include "process.h"
 #include "cpu.h"
 
-#define END_STEP 30
-
-
-
-struct workload_item_t {
-	int pid;       //< the event id
-    int ppid;      //< the event parent id
-	size_t ts;     //< start date
-	size_t tf;     //< finish date
-	size_t idle;   //< total time the process has been idle;
-	char *cmd;     //< the binary name
-	int prio;      //< process priority
-};
-
-enum  epoch { before, in, after };  //< to compare a date and a timeframe 
+/* Global workload definition */
+workload_item* workload = NULL;
+enum epoch { before, in, after };  //< to compare a date and a timeframe 
 typedef enum epoch epoch;
 
 
@@ -167,17 +156,17 @@ int main(int argc, char** argv) {
 	workload = malloc(sizeof(workload_item) * nr);
 	size_t workload_size = read_data(nr, input);
 	printf("* Loaded %zu lines of data.\n", nr);
-	pstate **timeline = alloc_timeline(END_STEP, workload_size);
+	pstate **timeline = alloc_timeline(MAX_STEPS, workload_size);
 
 	if (nr > 0) 
-		time_loop(workload_size, 0, END_STEP-1, MAX_CPU, timeline);
+		time_loop(workload_size, 0, MAX_STEPS - 1, MAX_CPU_CAP, timeline);
 	else
 		return EXIT_FAILURE;
 
 
 	printf("* Chronogram === \n");
-	chronogram(workload, workload_size, END_STEP-1);
-	print_timeline(END_STEP-1, workload_size, timeline);
+	chronogram(workload, workload_size, MAX_STEPS - 1);
+	print_timeline(MAX_STEPS - 1, workload_size, timeline);
 	free(workload);
 	return 0;
 }
