@@ -94,30 +94,79 @@ size_t count_lines_in_file(FILE *file) {
 }
 
 /**
- * @brief Read the workload data
- * 
- * @param filename the name of file, can be STDIN
- * @return number of data lines read in the file
+ * @brief Read the workload data from the provided file.
  */
 size_t read_data(size_t workload_size, FILE *file) {
     size_t count = 0;
-    char line[256];  // Buffer for each line in the file
-    char cmd[50];    // Buffer for command name
+    char line[256];
+    char cmd_buf[128];
 
     while (fgets(line, sizeof(line), file) && count < workload_size) {
+        // Skip empty lines or carriage returns
+        if (line[0] == '\n' || line[0] == '\r' || line[0] == ' ') continue;
+
         workload_item item;
-        // Parse the line into the workload_item structure
+        // The project requires columns to be blank-separated as per Section 4.1
         if (sscanf(line, "%d %d %zu %zu %zu %s %d",
                    &item.pid, &item.ppid, &item.ts, &item.tf,
-                   &item.idle, cmd, &item.prio) == 7) {
-            item.cmd = strdup(cmd);  // Duplicate the string for command name
+                   &item.idle, cmd_buf, &item.prio) == 7) {
+            
+            item.cmd = strdup(cmd_buf);
+            if (!item.cmd) {
+                perror("strdup error");
+                break;
+            }
             workload[count++] = item;
         } else {
-            fprintf(stderr, "Error parsing line: %s\n", line);
-			return false;
+            fprintf(stderr, "Error parsing workload line: %s", line);
+            break; 
         }
+    }
+    return count;
+}
+
+/**
+ * @brief Free all memory allocated for the workload.
+ */
+void free_workload(size_t size) {
+	if (!workload) return;
+	for (size_t i = 0; i < size; i++) {
+		if (workload[i].cmd) {
+			free(workload[i].cmd);
+		}
 	}
-	return count;
+	free(workload);
+	workload = NULL;
+}
+
+/**
+ * @brief Comparison function to sort workload items by start time (ts).
+ * This allows the scheduler to easily step through the workload.
+ */
+int compare_workload(const void *a, const void *b) {
+    const workload_item *item_a = (const workload_item *)a;
+    const workload_item *item_b = (const workload_item *)b;
+    
+    if (item_a->ts != item_b->ts) {
+        return (int)item_a->ts - (int)item_b->ts;
+    }
+    // Secondary sort: Priority (Higher first)
+    return item_b->prio - item_a->prio;
+}
+
+/**
+ * @brief Comparison function for the scheduler's internal queues.
+ * Sorts by priority (descending) and PID (ascending) as a tie-breaker.
+ */
+int compare_processes(const void *a, const void *b) {
+    const process *p1 = (const process *)a;
+    const process *p2 = (const process *)b;
+
+    if (p1->prio != p2->prio) {
+        return p2->prio - p1->prio; // Higher priority first
+    }
+    // Tie-breaker: Lower PID first (fairness)
+    return (int)p1->pid - (int)p2->pid;
 }
 
 /**
@@ -151,22 +200,44 @@ int main(int argc, char** argv) {
 	fflush(stdout);
 	size_t nr = count_lines_in_file(input);
 
-	printf(" %zu lines in data.\n", nr);
-
 	workload = malloc(sizeof(workload_item) * nr);
+	if (!workload) {
+		perror("malloc workload");
+		return EXIT_FAILURE;
+	}
+
 	size_t workload_size = read_data(nr, input);
-	printf("* Loaded %zu lines of data.\n", nr);
+	if (workload_size < nr) {
+		printf("* Warning: Only %zu/%zu lines loaded successfully.\n", workload_size, nr);
+	} else {
+		printf("* Loaded %zu lines of data.\n", workload_size);
+	}
+
+	// Ensure workload is sorted by arrival time (Infrastructure Architect step)
+	if (workload_size > 0) {
+		qsort(workload, workload_size, sizeof(workload_item), compare_workload);
+	}
+
 	pstate **timeline = alloc_timeline(MAX_STEPS, workload_size);
 
-	if (nr > 0) 
+	if (workload_size > 0) {
 		time_loop(workload_size, 0, MAX_STEPS - 1, MAX_CPU_CAP, timeline);
-	else
+	} else {
+		fprintf(stderr, "Error: No valid workload to simulate.\n");
+		free_workload(nr);
+		if (input != stdin) fclose(input);
 		return EXIT_FAILURE;
+	}
 
 
 	printf("* Chronogram === \n");
 	chronogram(workload, workload_size, MAX_STEPS - 1);
 	print_timeline(MAX_STEPS - 1, workload_size, timeline);
-	free(workload);
+	
+	// Cleanup
+	free_workload(workload_size);
+	free_timeline(workload_size, timeline);
+	if (input != stdin) fclose(input);
+	
 	return 0;
 }
