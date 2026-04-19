@@ -167,49 +167,7 @@ int compare_processes(const void *a, const void *b) {
     return (int)p1->pid - (int)p2->pid;
 }
 
-/**
- * @brief Helper to find a workload item by its PID
- */
-workload_item* get_workload_by_pid(size_t pid, size_t workload_size) {
-    for (size_t i = 0; i < workload_size; i++) {
-        if ((size_t)workload[i].pid == pid) return &workload[i];
-    }
-    return NULL;
-}
 
-/**
- * @brief Greedy priority fill and preemption logic.
- * Fills the CPU with highest priority processes up to capacity.
- * Preempted processes get idle++ and tf++ as penalty.
- */
-void greedy_priority_fill(process *available_procs, size_t nb_available, size_t ncpus, 
-                          process *run, size_t *nb_run, 
-                          process *pend, size_t *nb_pend,
-                          size_t workload_size) {
-    *nb_run = 0;
-    *nb_pend = 0;
-    size_t current_cpu_load = 0;
-
-    for (size_t i = 0; i < nb_available; i++) {
-        process p = available_procs[i];
-
-        if (current_cpu_load + (size_t)p.prio <= ncpus) {
-            // fits in cpu -> running queue
-            run[*nb_run] = p;
-            (*nb_run)++;
-            current_cpu_load += (size_t)p.prio;
-        } else {
-            // preempted -> pending queue + penalty
-            pend[*nb_pend] = p;
-            (*nb_pend)++;
-            workload_item* wl_item = get_workload_by_pid((size_t)p.pid, workload_size);
-            if (wl_item != NULL) {
-                wl_item->idle++;
-                wl_item->tf++;
-            }
-        }
-    }
-}
 
 /**
  * @brief Main simulation loop from t=ts to t=tf.
@@ -245,12 +203,37 @@ void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate 
             }
         }
 
-        // sort: priority desc, pid asc
-        qsort(avail, nb_avail, sizeof(process), compare_processes);
+        if (nb_avail > 0) {
+            qsort(avail, nb_avail, sizeof(process), compare_processes);
+        }
 
-        // fill cpu, apply penalties, record
+        // 3. Greedy Fill & Preemption (Person 3)
+        size_t current_cpu_load = 0;
         size_t nb_run = 0, nb_pend = 0;
-        greedy_priority_fill(avail, nb_avail, ncpus, run, &nb_run, pend, &nb_pend, workload_size);
+        
+        for (size_t i = 0; i < nb_avail; i++) {
+            process p = avail[i];
+
+            if (current_cpu_load + (size_t)p.prio <= ncpus) {
+                // Fits in CPU Capacity -> Running Queue
+                run[nb_run] = p;
+                nb_run++;
+                current_cpu_load += (size_t)p.prio;
+            } else {
+                // Preempted or Capacity Full -> Pending Queue
+                pend[nb_pend] = p;
+                nb_pend++;
+                
+                // Penalty: Increment idle and tf (Find original process by PID)
+                for (size_t w = 0; w < workload_size; w++) {
+                    if ((size_t)workload[w].pid == p.pid) {
+                        workload[w].idle++;
+                        workload[w].tf++;
+                        break;
+                    }
+                }
+            }
+        }
         record_timeline(t, MAX_STEPS, timeline, run, nb_run, pend, nb_pend, workload_size);
     }
 
