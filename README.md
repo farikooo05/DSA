@@ -100,7 +100,158 @@ From the top directory of your project:
 
 ## Report
 
--- Insert your report here ---
+### 🧠 Algorithm Description (Pseudo-code)
 
+This project implements a simplified simulation of a process scheduler. The system distributes CPU time among processes based on their priorities and a fixed CPU capacity.
 
+Each process is defined by:
+
+* `ts`: start time
+* `tf`: finish time (can increase dynamically)
+* `prio`: priority
+* `idle`: waiting time due to interruptions
+
+The simulation runs from `t = 0` to `t = 29`.
+
+---
+
+### Global Scheduling Algorithm
+
+```id="n3g8lp"
+for each timestep t from 0 to 29:
+
+    available_processes = []
+
+    // Step 1: Select active processes
+    for each process P:
+        if P.ts ≤ t ≤ P.tf:
+            add P to available_processes
+
+    // Step 2: Sort by priority
+    sort available_processes by:
+        - descending priority
+        - ascending PID (tie-breaker)
+
+    running_processes = []
+    pending_processes = []
+    cpu_load = 0
+
+    // Step 3: Greedy CPU allocation
+    for each process P in sorted list:
+        if cpu_load + P.prio ≤ CPU capacity (20):
+            add P to running_processes
+            cpu_load += P.prio
+        else:
+            add P to pending_processes
+
+    // Step 4: Update timeline
+    for each process P:
+        if t < P.ts:
+            timeline[P][t] = '.'
+        else if t > P.tf:
+            timeline[P][t] = '_'
+        else if P in running_processes:
+            timeline[P][t] = 'R'
+        else:
+            timeline[P][t] = '.'
+```
+
+This approach ensures that the CPU is always filled with the highest-priority processes while respecting the capacity constraint.
+
+---
+
+### ⚙️ Complexity Analysis
+
+Let:
+
+* `N` = number of processes
+* `T` = number of timesteps (fixed at 30)
+
+At each timestep:
+
+* Scanning processes → **O(N)**
+* Sorting processes → **O(N log N)**
+
+Total complexity:
+
+```id="lqtw8f"
+O(T × N log N)
+```
+
+Since `T` is constant:
+
+```id="rm1g7a"
+O(N log N)
+```
+
+For simplicity:
+
+```id="1ff3mw"
+O(N × T)
+```
+
+---
+
+### 📊 Implementation Overview
+
+#### 👨‍💻 Person 1 – Infrastructure & Parsing
+
+* Defined constants and structures
+* Implemented workload parsing
+* Ensured memory safety
+* Added sorting helpers and utilities
+* Managed memory for workload and timeline
+
+---
+
+#### 👨‍💻 Person 2 – Core Engine & Scheduling Integration
+
+* Implemented the global simulation loop
+* Identified active processes at each timestep
+* Implemented greedy scheduling logic:
+
+  * sorting by priority
+  * CPU allocation based on capacity
+* Managed timeline states (`R`, `.`, `_`)
+* Implemented output formatting (`[===Results===]`)
+* Added optional visualization (chronogram, traces)
+
+---
+
+#### 👨‍💻 Person 3 – Validation & Advanced Logic
+
+* Verified correctness of scheduling behavior
+* Assisted with testing and debugging
+* Ensured compliance with constraints:
+
+  * CPU capacity
+  * execution duration
+  * priority ordering
+
+---
+
+### 🧪 Testing & Validation
+
+The project was tested using:
+
+```id="a1v9e3"
+./tests/test-sched.sh
+```
+
+The following properties were verified:
+
+* CPU capacity is never exceeded
+* Execution duration is within limits
+* Total execution steps are correct
+* Higher-priority processes are always preferred
+
+All tests pass successfully.
+
+---
+
+### 📝 Final Remarks
+
+The project follows a modular design where parsing, scheduling, and simulation are separated. The greedy scheduling approach provides a simple yet effective way to simulate CPU allocation.
+
+The implementation satisfies all required features and produces correct results across all test cases.
 
