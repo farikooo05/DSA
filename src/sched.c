@@ -52,7 +52,7 @@ void draw_hbar(char c, size_t width) {
 }
 
 void chronogram(workload_item* workload, size_t nb_processes, size_t timesteps) {
-	// drw timeliine
+	// draw timeline
 	size_t tick;
 	size_t freq=5;
 	printf("\t");
@@ -79,7 +79,7 @@ void chronogram(workload_item* workload, size_t nb_processes, size_t timesteps) 
 size_t count_lines_in_file(FILE *file) {
     int lines = 0;
     char ch;
-    // Count the number of newline characters
+    // count newline characters
     while ((ch = fgetc(file)) != EOF) {
         if (ch == '\n') {
             lines++;
@@ -102,11 +102,10 @@ size_t read_data(size_t workload_size, FILE *file) {
     char cmd_buf[128];
 
     while (fgets(line, sizeof(line), file) && count < workload_size) {
-        // Skip empty lines or carriage returns
+        // skip empty lines or carriage returns
         if (line[0] == '\n' || line[0] == '\r' || line[0] == ' ') continue;
 
         workload_item item;
-        // The project requires columns to be blank-separated as per Section 4.1
         if (sscanf(line, "%d %d %zu %zu %zu %s %d",
                    &item.pid, &item.ppid, &item.ts, &item.tf,
                    &item.idle, cmd_buf, &item.prio) == 7) {
@@ -141,7 +140,6 @@ void free_workload(size_t size) {
 
 /**
  * @brief Comparison function to sort workload items by start time (ts).
- * This allows the scheduler to easily step through the workload.
  */
 int compare_workload(const void *a, const void *b) {
     const workload_item *item_a = (const workload_item *)a;
@@ -150,22 +148,22 @@ int compare_workload(const void *a, const void *b) {
     if (item_a->ts != item_b->ts) {
         return (int)item_a->ts - (int)item_b->ts;
     }
-    // Secondary sort: Priority (Higher first)
+    // secondary sort: priority (higher first)
     return item_b->prio - item_a->prio;
 }
 
 /**
  * @brief Comparison function for the scheduler's internal queues.
- * Sorts by priority (descending) and PID (ascending) as a tie-breaker.
+ * Sorts by priority (descending) and PID (ascending) as tie-breaker.
  */
 int compare_processes(const void *a, const void *b) {
     const process *p1 = (const process *)a;
     const process *p2 = (const process *)b;
 
     if (p1->prio != p2->prio) {
-        return p2->prio - p1->prio; // Higher priority first
+        return p2->prio - p1->prio; // higher priority first
     }
-    // Tie-breaker: Lower PID first (fairness)
+    // tie-breaker: lower PID first
     return (int)p1->pid - (int)p2->pid;
 }
 
@@ -174,15 +172,15 @@ int compare_processes(const void *a, const void *b) {
  */
 workload_item* get_workload_by_pid(size_t pid, size_t workload_size) {
     for (size_t i = 0; i < workload_size; i++) {
-        if (workload[i].pid == pid) return &workload[i];
+        if ((size_t)workload[i].pid == pid) return &workload[i];
     }
     return NULL;
 }
 
 /**
- * @brief Person 3: The Greedy Priority Fill & Preemption Logic
- * Evaluates available processes, fills the CPU capacity with the highest priority ones,
- * and penalizes preempted/delayed processes.
+ * @brief Greedy priority fill and preemption logic.
+ * Fills the CPU with highest priority processes up to capacity.
+ * Preempted processes get idle++ and tf++ as penalty.
  */
 void greedy_priority_fill(process *available_procs, size_t nb_available, size_t ncpus, 
                           process *run, size_t *nb_run, 
@@ -195,18 +193,16 @@ void greedy_priority_fill(process *available_procs, size_t nb_available, size_t 
     for (size_t i = 0; i < nb_available; i++) {
         process p = available_procs[i];
 
-        if (current_cpu_load + p.prio <= ncpus) {
-            // Fits in CPU Capacity -> Running Queue
+        if (current_cpu_load + (size_t)p.prio <= ncpus) {
+            // fits in cpu -> running queue
             run[*nb_run] = p;
             (*nb_run)++;
-            current_cpu_load += p.prio;
+            current_cpu_load += (size_t)p.prio;
         } else {
-            // Preempted or Capacity Full -> Pending Queue
+            // preempted -> pending queue + penalty
             pend[*nb_pend] = p;
             (*nb_pend)++;
-            
-            // Apply Penalty: Increment idle and tf for the original workload item
-            workload_item* wl_item = get_workload_by_pid(p.pid, workload_size);
+            workload_item* wl_item = get_workload_by_pid((size_t)p.pid, workload_size);
             if (wl_item != NULL) {
                 wl_item->idle++;
                 wl_item->tf++;
@@ -216,13 +212,51 @@ void greedy_priority_fill(process *available_procs, size_t nb_available, size_t 
 }
 
 /**
- * @brief main loop for simulation: describe actions taken at each
- * time step from time ts to tf. 
+ * @brief Main simulation loop from t=ts to t=tf.
+ *
+ * At each timestep:
+ *   1. collect all processes where ts <= t <= tf (eligible)
+ *   2. sort eligible by priority desc, pid asc
+ *   3. greedy fill: add to run queue while cumulative prio <= ncpus
+ *   4. remaining go to pending queue with idle/tf penalty
+ *   5. record state in timeline
+ *
+ * Complexity: O(T * N log N)
  */
 void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate **timeline) {
+    process *avail = malloc(workload_size * sizeof(process));
+    process *run   = malloc(workload_size * sizeof(process));
+    process *pend  = malloc(workload_size * sizeof(process));
+    if (!avail || !run || !pend) {
+        perror("malloc in time_loop");
+        free(avail); free(run); free(pend);
+        return;
+    }
 
-    /* ... to be implemented **/
+    for (size_t t = ts; t <= tf; t++) {
+        size_t nb_avail = 0;
 
+        // collect processes active at time t
+        for (size_t i = 0; i < workload_size; i++) {
+            if (workload[i].ts <= t && t <= workload[i].tf) {
+                avail[nb_avail].pid  = workload[i].pid;
+                avail[nb_avail].prio = workload[i].prio;
+                nb_avail++;
+            }
+        }
+
+        // sort: priority desc, pid asc
+        qsort(avail, nb_avail, sizeof(process), compare_processes);
+
+        // fill cpu, apply penalties, record
+        size_t nb_run = 0, nb_pend = 0;
+        greedy_priority_fill(avail, nb_avail, ncpus, run, &nb_run, pend, &nb_pend, workload_size);
+        record_timeline(t, MAX_STEPS, timeline, run, nb_run, pend, nb_pend, workload_size);
+    }
+
+    free(avail);
+    free(run);
+    free(pend);
 }
 
 /**
@@ -230,7 +264,7 @@ void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate 
  */
 int main(int argc, char** argv) {
 	FILE *input;
-	if (argc > 1) { // if one arg, use it to read in data 
+	if (argc > 1) { // if one arg, use it to read in data
 		if ((input = fopen(argv[1],"r")) == NULL) {
 			perror("Error reading file:");
 			exit(EXIT_FAILURE);
@@ -259,10 +293,7 @@ int main(int argc, char** argv) {
 		printf("* Loaded %zu lines of data.\n", workload_size);
 	}
 
-	// Ensure workload is sorted by arrival time (Infrastructure Architect step)
-	if (workload_size > 0) {
-		qsort(workload, workload_size, sizeof(workload_item), compare_workload);
-	}
+	// do not sort workload: pid == array index must hold for correct timeline output
 
 	pstate **timeline = alloc_timeline(MAX_STEPS, workload_size);
 
