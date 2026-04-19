@@ -191,6 +191,16 @@ void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate 
         return;
     }
 
+    for (size_t i = 0; i < workload_size; i++) {
+        for (size_t t = 0; t < MAX_STEPS; t++) {
+            if (t < workload[i].ts) {
+                timeline[(size_t)workload[i].pid][t] = pending;
+            } else {
+                timeline[(size_t)workload[i].pid][t] = inactive;
+            }
+        }
+    }
+
     for (size_t t = ts; t <= tf; t++) {
         size_t nb_avail = 0;
 
@@ -207,7 +217,7 @@ void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate 
             qsort(avail, nb_avail, sizeof(process), compare_processes);
         }
 
-        // 3. Greedy Fill & Preemption (Person 3)
+
         size_t current_cpu_load = 0;
         size_t nb_run = 0, nb_pend = 0;
         
