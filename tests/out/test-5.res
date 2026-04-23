@@ -1,7 +1,7 @@
 [===Results===]
 0	RRRRRRRRRRRRRRRRRRR__________
-1	.RRRRRRRRRRRRR..RRR__________
-2	...RRRRR..RRRRRRRRR__________
+1	.RRRRRRRRRRRRRRRR____________
+2	...RRRRR..RRRR..RRRRR________
 3	....RRR______________________
 4	.......RRR___________________
 5	........RR___________________

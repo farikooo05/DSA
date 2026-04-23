@@ -8,14 +8,14 @@ TAIL=/usr/bin/tail           # on Linux distribution
 # Change this to point to your sched executable or you will have to pass it
 # as 1st parameter on the command line
 EXEC=../src/sched 
-if [ $# -gt 1 ]; then
+if [ $# -ge 1 ]; then
     EXEC=$1    
 fi
 
 PATTERN="===Results==="
-DATA_IN="in"
-DATA_REF="ref"
-DATA_OUT="out"
+DATA_IN="tests/in"
+DATA_REF="tests/ref"
+DATA_OUT="tests/out"
 mkdir -p $DATA_OUT
 
 if [ -x ${EXEC} ]; then
