@@ -19,6 +19,7 @@ struct workload_item_t {
     size_t idle;   // total time units the process has been idle
     char *cmd;     // the binary/command name
     int prio;      // priority: higher means less chance of interruption
+    size_t seq;    // arrival order for tie-breaking
 };
 
 typedef struct workload_item_t workload_item;

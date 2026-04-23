@@ -9,7 +9,7 @@ all : $(TARGET)
 	@echo "Compiler version:"
 	@$(CC) --version
 
-HELPERS = # data structures files used
+HELPERS = heap.o
 SCHED_OBJ = sched.o
 TRACE_OBJ = trace.o
 
@@ -18,9 +18,13 @@ $(TARGET) : $(HELPERS) $(SCHED_OBJ) $(TRACE_OBJ)
 	@$(CC) $(SCHED_OBJ) $(TRACE_OBJ) $(HELPERS) $(LDFLAGS) $(CFLAGS) -o $@
 
 
-sched.o : sched.c sched.h trace.h process.h
+sched.o : sched.c sched.h trace.h process.h heap.h
 	@echo "Building $@"
 	@$(CC) $(CFLAGS) -c  sched.c 
+
+heap.o : heap.c heap.h sched.h
+	@echo "Building $@"
+	@$(CC) $(CFLAGS) -c  heap.c
 
 .c.o :
 	@echo "Building $@"
@@ -28,6 +32,6 @@ sched.o : sched.c sched.h trace.h process.h
 
 
 clean:
-	rm -rf $(TARGETS) *.o *.dSYM *~
+	rm -rf $(TARGET) *.o *.dSYM *~
 
 

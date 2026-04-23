@@ -156,100 +156,163 @@ int compare_workload(const void *a, const void *b) {
  * @brief Comparison function for the scheduler's internal queues.
  * Sorts by priority (descending) and PID (ascending) as tie-breaker.
  */
-int compare_processes(const void *a, const void *b) {
-    const process *p1 = (const process *)a;
-    const process *p2 = (const process *)b;
+#include "heap.h"
 
-    if (p1->prio != p2->prio) {
-        return p2->prio - p1->prio; // higher priority first
+static size_t g_sched_seq = 0;
+static size_t *remaining_work = NULL;
+
+static void remove_finished_processes(Heap *runningQueue, size_t *cpu_load) {
+    size_t i = 0;
+    while (i < heap_size(runningQueue)) {
+        workload_item *proc = runningQueue->arr[i];
+        if (remaining_work[proc->pid] == 0) {
+            *cpu_load -= (size_t)proc->prio;
+            heap_remove_at(runningQueue, i);
+        } else {
+            i++;
+        }
     }
-    // tie-breaker: lower PID first
-    return (int)p1->pid - (int)p2->pid;
 }
 
+static void add_arrived_to_pending(Heap *pendingQueue, size_t workload_size, size_t t) {
+    for (size_t i = 0; i < workload_size; i++) {
+        if (workload[i].ts == t) {
+            workload[i].seq = g_sched_seq++;
+            heap_insert(pendingQueue, &workload[i]);
+        }
+    }
+}
 
+static void increment_idle_counters(Heap *pendingQueue) {
+    for (size_t i = 0; i < heap_size(pendingQueue); i++) {
+        workload_item *proc = pendingQueue->arr[i];
+        proc->idle++;
+    }
+}
 
-/**
- * @brief Main simulation loop from t=ts to t=tf.
- *
- * At each timestep:
- *   1. collect all processes where ts <= t <= tf (eligible)
- *   2. sort eligible by priority desc, pid asc
- *   3. greedy fill: add to run queue while cumulative prio <= ncpus
- *   4. remaining go to pending queue with idle/tf penalty
- *   5. record state in timeline
- *
- * Complexity: O(T * N log N)
- */
-void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate **timeline) {
-    process *avail = malloc(workload_size * sizeof(process));
-    process *run   = malloc(workload_size * sizeof(process));
-    process *pend  = malloc(workload_size * sizeof(process));
-    if (!avail || !run || !pend) {
-        perror("malloc in time_loop");
-        free(avail); free(run); free(pend);
-        return;
+static void record_state(size_t t, size_t workload_size, pstate **timeline, Heap *runningQueue, Heap *pendingQueue) {
+    process *run = malloc(sizeof(process) * (heap_size(runningQueue) + 1));
+    process *pend = malloc(sizeof(process) * (heap_size(pendingQueue) + workload_size + 1));
+    
+    size_t nb_run = 0;
+    size_t nb_pend = 0;
+
+    for (size_t i = 0; i < heap_size(runningQueue); i++) {
+        workload_item *p = runningQueue->arr[i];
+        run[nb_run].pid = (size_t)p->pid;
+        run[nb_run].prio = p->prio;
+        nb_run++;
+    }
+
+    for (size_t i = 0; i < heap_size(pendingQueue); i++) {
+        workload_item *p = pendingQueue->arr[i];
+        pend[nb_pend].pid = (size_t)p->pid;
+        pend[nb_pend].prio = p->prio;
+        nb_pend++;
     }
 
     for (size_t i = 0; i < workload_size; i++) {
-        for (size_t t = 0; t < MAX_STEPS; t++) {
-            if (t < workload[i].ts) {
-                timeline[(size_t)workload[i].pid][t] = pending;
-            } else {
-                timeline[(size_t)workload[i].pid][t] = inactive;
-            }
+        if (workload[i].ts > t) {
+            pend[nb_pend].pid = (size_t)workload[i].pid;
+            pend[nb_pend].prio = workload[i].prio;
+            nb_pend++;
         }
     }
 
-    for (size_t t = ts; t <= tf; t++) {
-        size_t nb_avail = 0;
-
-        // collect processes active at time t
-        for (size_t i = 0; i < workload_size; i++) {
-            if (workload[i].ts <= t && t <= workload[i].tf) {
-                avail[nb_avail].pid  = workload[i].pid;
-                avail[nb_avail].prio = workload[i].prio;
-                nb_avail++;
-            }
+    // Set finished processes to inactive ('_')
+    for (size_t i = 0; i < workload_size; i++) {
+        if (remaining_work[i] == 0 && workload[i].ts <= t) {
+            timeline[i][t] = inactive;
         }
+    }
 
-        if (nb_avail > 0) {
-            qsort(avail, nb_avail, sizeof(process), compare_processes);
+    record_timeline(t, MAX_STEPS, timeline, run, nb_run, pend, nb_pend, workload_size);
+    
+    free(run);
+    free(pend);
+}
+
+/**
+ * @brief Main simulation loop from t=ts to t=tf.
+ */
+void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate **timeline) {
+    Heap runningQueue;
+    Heap pendingQueue;
+    heap_init(&runningQueue, workload_size, min_cmp);
+    heap_init(&pendingQueue, workload_size, max_cmp);
+    
+    size_t cpu_load = 0;
+    g_sched_seq = 0;
+    remaining_work = malloc(sizeof(size_t) * workload_size);
+    for (size_t i = 0; i < workload_size; i++) {
+        remaining_work[i] = workload[i].tf - workload[i].ts + 1;
+    }
+
+    // Initialize timeline
+    for (size_t i = 0; i < workload_size; i++) {
+        for (size_t t = 0; t < MAX_STEPS; t++) {
+            timeline[i][t] = pending;
         }
+    }
 
+    for (size_t t = ts; t < MAX_STEPS; t++) {
+        remove_finished_processes(&runningQueue, &cpu_load);
+        add_arrived_to_pending(&pendingQueue, workload_size, t);
 
-        size_t current_cpu_load = 0;
-        size_t nb_run = 0, nb_pend = 0;
-        
-        for (size_t i = 0; i < nb_avail; i++) {
-            process p = avail[i];
+        workload_item **holdQueue = malloc(sizeof(workload_item *) * workload_size);
+        size_t holdCount = 0;
 
-            if (current_cpu_load + (size_t)p.prio <= ncpus) {
-                // Fits in CPU Capacity -> Running Queue
-                run[nb_run] = p;
-                nb_run++;
-                current_cpu_load += (size_t)p.prio;
+        while (!heap_empty(&pendingQueue)) {
+            workload_item *candidate = heap_top(&pendingQueue);
+            
+            if (cpu_load + (size_t)candidate->prio <= ncpus) {
+                heap_pop(&pendingQueue);
+                heap_insert(&runningQueue, candidate);
+                cpu_load += (size_t)candidate->prio;
             } else {
-                // Preempted or Capacity Full -> Pending Queue
-                pend[nb_pend] = p;
-                nb_pend++;
-                
-                // Penalty: Increment idle and tf (Find original process by PID)
-                for (size_t w = 0; w < workload_size; w++) {
-                    if ((size_t)workload[w].pid == p.pid) {
-                        workload[w].idle++;
-                        workload[w].tf++;
-                        break;
+                workload_item *lowest = heap_top(&runningQueue);
+                if (lowest != NULL && candidate->prio > lowest->prio) {
+                    heap_pop(&pendingQueue);
+                    heap_insert(&runningQueue, candidate);
+                    cpu_load += (size_t)candidate->prio;
+
+                    while (cpu_load > ncpus && !heap_empty(&runningQueue)) {
+                        workload_item *evict = heap_top(&runningQueue);
+                        heap_pop(&runningQueue);
+                        cpu_load -= (size_t)evict->prio;
+                        holdQueue[holdCount++] = evict;
                     }
+                } else {
+                    heap_pop(&pendingQueue);
+                    holdQueue[holdCount++] = candidate;
                 }
             }
         }
-        record_timeline(t, MAX_STEPS, timeline, run, nb_run, pend, nb_pend, workload_size);
+
+        for (size_t i = 0; i < holdCount; i++) {
+            holdQueue[i]->seq = g_sched_seq++;
+            heap_insert(&pendingQueue, holdQueue[i]);
+        }
+        free(holdQueue);
+
+        // Update work done for running processes
+        for (size_t i = 0; i < heap_size(&runningQueue); i++) {
+            remaining_work[runningQueue.arr[i]->pid]--;
+        }
+
+        increment_idle_counters(&pendingQueue);
+        record_state(t, workload_size, timeline, &runningQueue, &pendingQueue);
     }
 
-    free(avail);
-    free(run);
-    free(pend);
+    // Update workload tf for final chronogram
+    for (size_t i = 0; i < workload_size; i++) {
+        // tf is ts + work + idle - 1
+        workload[i].tf = workload[i].ts + (workload[i].tf - workload[i].ts + 1) + workload[i].idle - 1;
+    }
+
+    heap_free(&runningQueue);
+    heap_free(&pendingQueue);
+    free(remaining_work);
 }
 
 /**
