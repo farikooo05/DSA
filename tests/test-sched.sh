@@ -7,7 +7,7 @@ TAIL=/usr/bin/tail           # on Linux distribution
 
 # Change this to point to your sched executable or you will have to pass it
 # as 1st parameter on the command line
-EXEC=../src/sched 
+EXEC=../src/sched.exe 
 if [ $# -gt 0 ]; then
     EXEC=$1    
 fi
