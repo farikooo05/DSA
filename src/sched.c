@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include "sched.h"
@@ -7,8 +8,6 @@
 #include "cpu.h"
 
 #define END_STEP 30
-
-
 
 struct workload_item_t {
 	int pid;       //< the event id
@@ -20,164 +19,196 @@ struct workload_item_t {
 	int prio;      //< process priority
 };
 
-enum  epoch { before, in, after };  //< to compare a date and a timeframe 
-typedef enum epoch epoch;
+workload_item *workload = NULL;
+size_t workload_count = 0;
 
+typedef struct {
+    int pid;
+    int prio;
+    size_t ts;
+    size_t tf;
+    size_t idle;
+    size_t seq;
+    int state; /* 0=not_arrived 1=pending 2=running 3=finished */
+} proc_state;
 
-   /**
-    *            0,init
-    *         /           \
-	*      1,bash          2,bash
-	*     /   \   \        /      \ 
-	* 3,find   \   \      |       |
-	*         4,gcc \     |       |
-	*            |   |    |       |
-	*	       5,ld  |    |       | 
-	*                |    6,ssh   |
-	*                |    |       |
-	*                |    7,crypt |
-	*                |           8,snake
-    *               9,cat
-    */
+static proc_state *g_pool = NULL;
+static size_t g_seq = 0;
 
-   /*
-	workload_item workload[] = {
-	//  pid ppid  ts  tf idle  cmd     prio
-	    {0, -1,    0, 18,  0, "init",  10 },
-        {1,  0,    1, 16,  0, "bash",   1 },
-        {2,  0,    3, 16,  0, "bash",   1 },
-        {3,  1,    4,  6,  0, "find",   2 },
-        {4,  1,    7,  9,  0, "gcc",    5 },
-		{5,  4,    8,  9,  0, "ld",     4 }, 
-		{6,  2,   10, 13,  0, "ssh",    3 },
-        {7,  6,   11, 13,  0, "crypt",  5 },
-        {8,  2,   14, 16,  0, "snake",  4 },
-        {9,  1,   14, 15,  0, "cat",    5 },
-	};
-	*/
-void draw_hbar(char c, size_t width) {
-	char bar[width+1];
-	memset(bar, c, width);
-	bar[width]='\0';
-	printf("%s",bar);
+/* Sort pending: Prio DESC, Seq ASC (FIFO) — matches max_cmp in reference */
+int cmp_pend(const void *a, const void *b) {
+    int ia = *(const int *)a;
+    int ib = *(const int *)b;
+    if (g_pool[ia].prio != g_pool[ib].prio)
+        return g_pool[ib].prio - g_pool[ia].prio;
+    if (g_pool[ia].seq != g_pool[ib].seq)
+        return (g_pool[ia].seq < g_pool[ib].seq) ? -1 : 1;
+    return 0;
 }
 
-void chronogram(workload_item* workload, size_t nb_processes, size_t timesteps) {
-	// drw timeliine
-	size_t tick;
-	size_t freq=5;
+/* Weakest runner: Prio ASC, then PID DESC — matches min_cmp in reference */
+int find_weakest_runner(proc_state *pool, size_t n) {
+    int idx = -1;
+    for (size_t i = 0; i < n; i++) {
+        if (pool[i].state != 2) continue;
+        if (idx == -1) { idx = (int)i; continue; }
+        if (pool[i].prio < pool[idx].prio ||
+           (pool[i].prio == pool[idx].prio && pool[i].pid > pool[idx].pid)) {
+            idx = (int)i;
+        }
+    }
+    return idx;
+}
+
+void chronogram(workload_item *wl, size_t nb, size_t timesteps) {
 	printf("\t");
-	for (tick=0; tick<timesteps; tick++) {
-		if (tick%freq==0) printf("|"); else printf(".");
+	for (size_t tick = 0; tick < timesteps; tick++) {
+		if (tick % 5 == 0) printf("|"); else printf(".");
 	}
 	printf("\n");
-	// draw processes lifetime
-	for (size_t i=0; i<nb_processes; i++) {
-		printf("%s\t", workload[i].cmd);
-		draw_hbar(' ',workload[i].ts);
-		draw_hbar('X',workload[i].tf-workload[i].ts);
-		printf("\t\t\t (tf=%zu,idle=%zu)\n", workload[i].tf, workload[i].idle);
+	for (size_t i = 0; i < nb; i++) {
+		printf("%s\t", wl[i].cmd);
+		for (size_t t = 0; t < wl[i].ts; t++) printf(" ");
+		for (size_t t = wl[i].ts; t < wl[i].tf; t++) printf("X");
+		printf("\t\t\t (tf=%zu,idle=%zu)\n", wl[i].tf, wl[i].idle);
 	}
 }
 
-
-/**
- * @brief count lines in file
- * 
- * @param file assumed to be an open file
- * @return the number of lines in files 
- */
 size_t count_lines_in_file(FILE *file) {
     int lines = 0;
     char ch;
-    // Count the number of newline characters
-    while ((ch = fgetc(file)) != EOF) {
-        if (ch == '\n') {
-            lines++;
-        }
-    }
-    // If the file is not empty and the last line doesn't end with '\n'
-    if (ch != '\n' && lines != 0) {
-        lines++;
-    }
+    while ((ch = fgetc(file)) != EOF) if (ch == '\n') lines++;
+    if (ch != '\n' && lines != 0) lines++;
     rewind(file);
     return lines;
 }
 
-/**
- * @brief Read the workload data
- * 
- * @param filename the name of file, can be STDIN
- * @return number of data lines read in the file
- */
 size_t read_data(size_t workload_size, FILE *file) {
     size_t count = 0;
-    char line[256];  // Buffer for each line in the file
-    char cmd[50];    // Buffer for command name
-
+    char line[256], cmd[50];
     while (fgets(line, sizeof(line), file) && count < workload_size) {
         workload_item item;
-        // Parse the line into the workload_item structure
-        if (sscanf(line, "%d %d %zu %zu %zu %s %d",
-                   &item.pid, &item.ppid, &item.ts, &item.tf,
-                   &item.idle, cmd, &item.prio) == 7) {
-            item.cmd = strdup(cmd);  // Duplicate the string for command name
+        if (sscanf(line, "%d %d %zu %zu %zu %s %d", &item.pid, &item.ppid, &item.ts, &item.tf, &item.idle, cmd, &item.prio) == 7) {
+            item.cmd = strdup(cmd);
             workload[count++] = item;
-        } else {
-            fprintf(stderr, "Error parsing line: %s\n", line);
-			return false;
         }
 	}
 	return count;
 }
 
-/**
- * @brief main loop for simulation: describe actions taken at each
- * time step from time ts to tf. 
- */
-void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate **timeline) {
+void time_loop(size_t workload_size, size_t ts, size_t tf, size_t capacity, pstate **timeline) {
+    proc_state *pool = calloc(workload_size, sizeof(proc_state));
+    for (size_t i = 0; i < workload_size; i++) {
+        pool[i].pid = workload[i].pid; pool[i].prio = workload[i].prio;
+        pool[i].ts = workload[i].ts; pool[i].tf = workload[i].tf;
+    }
+    g_pool = pool;
 
-    /* ... to be implemented **/
+    int *pend_idx = malloc(sizeof(int) * workload_size);
+    int *hold_list = malloc(sizeof(int) * workload_size * 2);
 
+    for (size_t t = ts; t <= tf; t++) {
+        int load = 0;
+
+        /* Step 1: evict finished, compute current load */
+        for (size_t i = 0; i < workload_size; i++) {
+            if (pool[i].state == 2) {
+                if (pool[i].tf < t) pool[i].state = 3;
+                else load += pool[i].prio;
+            }
+        }
+
+        /* Step 2: enqueue newly arrived into pending */
+        for (size_t i = 0; i < workload_size; i++) {
+            if (pool[i].state == 0 && pool[i].ts == t) {
+                pool[i].state = 1;
+                pool[i].seq = g_seq++;
+            }
+        }
+
+        /* Step 3: promote pending -> running (one-pass with preemption) */
+        size_t np = 0;
+        for (size_t i = 0; i < workload_size; i++)
+            if (pool[i].state == 1) pend_idx[np++] = (int)i;
+        if (np > 0) qsort(pend_idx, np, sizeof(int), cmp_pend);
+
+        size_t holdCount = 0;
+
+        for (size_t i = 0; i < np; i++) {
+            int ci = pend_idx[i];
+
+            if (load + pool[ci].prio <= (int)capacity) {
+                /* fits directly */
+                pool[ci].state = 2;
+                load += pool[ci].prio;
+            } else {
+                int w = find_weakest_runner(pool, workload_size);
+                if (w != -1 && pool[ci].prio > pool[w].prio) {
+                    /* preempt: schedule candidate, then evict until under cap */
+                    pool[ci].state = 2;
+                    load += pool[ci].prio;
+                    while (load > (int)capacity) {
+                        int victim = find_weakest_runner(pool, workload_size);
+                        if (victim == -1) break;
+                        pool[victim].state = 4; /* hold */
+                        load -= pool[victim].prio;
+                        pool[victim].tf++;
+                        hold_list[holdCount++] = victim;
+                    }
+                } else {
+                    /* can't fit, can't preempt — hold */
+                    pool[ci].state = 4; /* hold */
+                    pool[ci].tf++;
+                    hold_list[holdCount++] = ci;
+                }
+            }
+        }
+
+        /* re-insert held processes as pending with fresh seq */
+        for (size_t i = 0; i < holdCount; i++) {
+            pool[hold_list[i]].state = 1;
+            pool[hold_list[i]].seq = g_seq++;
+        }
+
+        /* Step 4: increment idle for everything still pending */
+        for (size_t i = 0; i < workload_size; i++) {
+            if (pool[i].state == 1) pool[i].idle++;
+        }
+
+        /* Step 5: record timeline */
+        process *ra = malloc(sizeof(process) * workload_size);
+        process *pa = malloc(sizeof(process) * workload_size);
+        size_t nr = 0, npa = 0;
+        for (size_t i = 0; i < workload_size; i++) {
+            if (pool[i].state == 2) {
+                ra[nr].pid = pool[i].pid; ra[nr].prio = pool[i].prio; nr++;
+            } else if (pool[i].state == 1 || (pool[i].state == 0 && pool[i].ts > t)) {
+                pa[npa].pid = pool[i].pid; pa[npa].prio = pool[i].prio; npa++;
+            }
+        }
+        record_timeline(t, tf + 1, timeline, ra, nr, pa, npa, workload_size);
+        free(ra); free(pa);
+    }
+
+    for (size_t i = 0; i < workload_size; i++) {
+        workload[i].tf = pool[i].tf;
+        workload[i].idle = pool[i].idle;
+    }
+    free(pend_idx); free(hold_list); free(pool);
 }
 
-/**
- * main
- */
-int main(int argc, char** argv) {
-	FILE *input;
-	if (argc > 1) { // if one arg, use it to read in data 
-		if ((input = fopen(argv[1],"r")) == NULL) {
-			perror("Error reading file:");
-			exit(EXIT_FAILURE);
-		}
-		else
-			printf("* Read from %s ...", argv[1]);
-	}
-	else { // no arg provided, read from stdin
-			printf("* Read from stdin ...");
-			input = stdin;
-	}
-	// read from standard input
-	fflush(stdout);
-	size_t nr = count_lines_in_file(input);
-
-	printf(" %zu lines in data.\n", nr);
-
-	workload = malloc(sizeof(workload_item) * nr);
-	size_t workload_size = read_data(nr, input);
-	printf("* Loaded %zu lines of data.\n", nr);
-	pstate **timeline = alloc_timeline(END_STEP, workload_size);
-
-	if (nr > 0) 
-		time_loop(workload_size, 0, END_STEP-1, MAX_CPU, timeline);
-	else
-		return EXIT_FAILURE;
-
-
-	printf("* Chronogram === \n");
-	chronogram(workload, workload_size, END_STEP-1);
-	print_timeline(END_STEP-1, workload_size, timeline);
-	free(workload);
-	return 0;
+int main(int argc, char **argv) {
+    FILE *in = (argc > 1) ? fopen(argv[1], "r") : stdin;
+    if (!in) exit(1);
+    size_t nr = count_lines_in_file(in);
+    workload = malloc(sizeof(workload_item) * nr);
+    workload_count = read_data(nr, in);
+    pstate **tl = alloc_timeline(END_STEP, workload_count);
+    if (workload_count > 0) time_loop(workload_count, 0, END_STEP - 1, CPU_CAPABILITY, tl);
+    printf("* Chronogram === \n");
+    chronogram(workload, workload_count, END_STEP - 1);
+    print_timeline(END_STEP - 1, workload_count, tl);
+    for (size_t i = 0; i < workload_count; i++) free(workload[i].cmd);
+    free(workload); free_timeline(workload_count, tl);
+    return 0;
 }
