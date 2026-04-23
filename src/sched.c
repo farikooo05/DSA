@@ -94,18 +94,22 @@ size_t count_lines_in_file(FILE *file) {
 }
 
 /**
- * @brief Read the workload data from the provided file.
+ * @brief Read the workload data
+ * 
+ * @param filename the name of file, can be STDIN
+ * @return number of data lines read in the file
  */
 size_t read_data(size_t workload_size, FILE *file) {
     size_t count = 0;
-    char line[256];
-    char cmd_buf[128];
+    char line[256];   // Buffer for each line in the file
+    char cmd_buf[128];   // Buffer for command name
 
     while (fgets(line, sizeof(line), file) && count < workload_size) {
         // skip empty lines or carriage returns
         if (line[0] == '\n' || line[0] == '\r' || line[0] == ' ') continue;
 
         workload_item item;
+        // Parse the line into the workload_item structure
         if (sscanf(line, "%d %d %zu %zu %zu %s %d",
                    &item.pid, &item.ppid, &item.ts, &item.tf,
                    &item.idle, cmd_buf, &item.prio) == 7) {
@@ -139,7 +143,7 @@ void free_workload(size_t size) {
 }
 
 /**
- * @brief Comparison function to sort workload items by start time (ts).
+ * @brief Simple helper to sort the workload by start time (ts)
  */
 int compare_workload(const void *a, const void *b) {
     const workload_item *item_a = (const workload_item *)a;
@@ -219,7 +223,7 @@ static void record_state(size_t t, size_t workload_size, pstate **timeline, Heap
         }
     }
 
-    // Set finished processes to inactive ('_')
+    // Mark anyone who's finished their work as inactive ('_')
     for (size_t i = 0; i < workload_size; i++) {
         if (remaining_work[i] == 0 && workload[i].ts <= t) {
             timeline[i][t] = inactive;
@@ -233,7 +237,8 @@ static void record_state(size_t t, size_t workload_size, pstate **timeline, Heap
 }
 
 /**
- * @brief Main simulation loop from t=ts to t=tf.
+ * @brief main loop for simulation: describe actions taken at each
+ * time step from time ts to tf. 
  */
 void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate **timeline) {
     Heap runningQueue;
@@ -256,26 +261,34 @@ void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate 
     }
 
     for (size_t t = ts; t < MAX_STEPS; t++) {
+        // First, kick out any processes that are done so we have room
         remove_finished_processes(&runningQueue, &cpu_load);
+
+        // See if any new processes are arriving at this tick and put them in the waiting line
         add_arrived_to_pending(&pendingQueue, workload_size, t);
 
         workload_item **holdQueue = malloc(sizeof(workload_item *) * workload_size);
         size_t holdCount = 0;
 
+        // Main scheduling part: try to move processes from waiting to running
         while (!heap_empty(&pendingQueue)) {
             workload_item *candidate = heap_top(&pendingQueue);
             
             if (cpu_load + (size_t)candidate->prio <= ncpus) {
+                // If it fits, just schedule it directly
                 heap_pop(&pendingQueue);
                 heap_insert(&runningQueue, candidate);
                 cpu_load += (size_t)candidate->prio;
             } else {
+                // CPU is full, so see if we can preempt the weakest process currently running
                 workload_item *lowest = heap_top(&runningQueue);
                 if (lowest != NULL && candidate->prio > lowest->prio) {
+                    // It has higher priority, so it takes the spot of the weakest runner
                     heap_pop(&pendingQueue);
                     heap_insert(&runningQueue, candidate);
                     cpu_load += (size_t)candidate->prio;
 
+                    // We might need to kick out more processes if the new one is too heavy
                     while (cpu_load > ncpus && !heap_empty(&runningQueue)) {
                         workload_item *evict = heap_top(&runningQueue);
                         heap_pop(&runningQueue);
@@ -283,24 +296,29 @@ void time_loop(size_t workload_size, size_t ts, size_t tf, size_t ncpus, pstate 
                         holdQueue[holdCount++] = evict;
                     }
                 } else {
+                    // Not enough priority to preempt, so it stays in the waiting line
                     heap_pop(&pendingQueue);
                     holdQueue[holdCount++] = candidate;
                 }
             }
         }
 
+        // Put everyone who didn't make the cut back into the pending queue
         for (size_t i = 0; i < holdCount; i++) {
             holdQueue[i]->seq = g_sched_seq++;
             heap_insert(&pendingQueue, holdQueue[i]);
         }
         free(holdQueue);
 
-        // Update work done for running processes
+        // Reduce the work remaining for everyone currently using the CPU
         for (size_t i = 0; i < heap_size(&runningQueue); i++) {
             remaining_work[runningQueue.arr[i]->pid]--;
         }
 
+        // Everyone still waiting gets another 'idle' tick added to their stats
         increment_idle_counters(&pendingQueue);
+
+        // Finally, save what's happening right now so we can draw the timeline later
         record_state(t, workload_size, timeline, &runningQueue, &pendingQueue);
     }
 
